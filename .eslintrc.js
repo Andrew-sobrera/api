@@ -26,5 +26,7 @@ module.exports = {
     'class-methods-use-this': 'off',
     'quote-props': 'off',
     'import/no-extraneous-dependencies': 'off',
+    'no-param-reassign': 'off',
+    'consistent-return': 'of',
   },
 };

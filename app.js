@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import task from './src/routes/taskRoutes';
+import user from './src/routes/userRoutes';
 
 import './src/database';
 
@@ -20,6 +21,7 @@ class App {
 
   routes() {
     this.app.use('/tasks', task);
+    this.app.use('/users', user);
   }
 }
 export default new App().app;
