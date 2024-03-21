@@ -2,7 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import task from './src/routes/taskRoutes';
 import user from './src/routes/userRoutes';
-
+import cors from 'cors'
 import './src/database';
 
 dotenv.config();
@@ -13,13 +13,16 @@ class App {
     this.middlewares();
     this.routes();
   }
+  
 
   middlewares() {
+    this.app.use(cors());
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(express.json());
   }
 
   routes() {
+    this.app.use(cors());
     this.app.use('/tasks', task);
     this.app.use('/users', user);
   }
