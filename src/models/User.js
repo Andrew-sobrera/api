@@ -38,6 +38,10 @@ export default class User extends Model {
           },
         },
       },
+      token: {
+        type: Sequelize.STRING,
+        defaultValue: '',
+      },
     }, {
       sequelize,
     });
@@ -49,5 +53,9 @@ export default class User extends Model {
     });
 
     return this;
+  }
+
+  isValid(password){
+    return bcryptjs.compare(password, this.password_hash);
   }
 }

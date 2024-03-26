@@ -24,7 +24,7 @@ class App {
   routes() {
     this.app.use(cors());
     this.app.use('/tasks', task);
-    this.app.use('/users', user);
+    this.app.use('/users', user);  
   }
 }
 export default new App().app;

@@ -1,11 +1,20 @@
 import User from '../models/User';
+import tokenController from './TokenController';
+import userFormatter from '../formatter/userFormatter'
+import userResource from './resources/userResource';
 
 class UserController {
   async create(req, res) {
     try {
-      const novaTarefa = await User.create(req.body);
+      const { nome, email, password } = req.body
 
-      res.json(novaTarefa);
+      const token = await tokenController.store(email, password);
+
+      const userObj = userFormatter(nome,password,email,token);
+
+      const user = await User.create(userObj);
+
+      res.json(userResource(user));
     } catch (e) {
       res.status(400).json({
         erros: e.errors.map((err) => err.message),
@@ -17,7 +26,7 @@ class UserController {
     try {
       const users = await User.findAll();
       return res.json(users);
-    } catch (e) {
+    } catch (errr) {
       res.status(400).json({
         erros: e.errors.map((err) => err.message),
       });
@@ -30,7 +39,7 @@ class UserController {
 
       const users = await User.findByPk(id);
       return res.json(users);
-    } catch (e) {
+    } catch (err) {
       res.status(400).json({
         erros: e.errors.map((err) => err.message),
       });
