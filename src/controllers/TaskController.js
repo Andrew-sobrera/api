@@ -1,9 +1,20 @@
 import Tarefa from '../models/Tarefa';
-import Tarefa from '../models/Tarefa';
+import User from '../models/User';
 
 class TaskController {
   async findAll(req, res) {
-    const tarefas = await Tarefa.findAll();
+
+    const user = await User.findOne({
+      where : {
+        email: req.userEmail
+      }
+    })
+    
+    const tarefas = await Tarefa.findAll({
+      where: {
+        user_id : user.id
+      }
+    });
     res.json(tarefas);
   }
 
