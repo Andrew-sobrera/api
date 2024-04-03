@@ -1,7 +1,7 @@
 import User from '../models/User';
 import tokenController from './TokenController';
 import userFormatter from '../formatter/userFormatter'
-import userResource from './resources/userResource';
+
 
 class UserController {
   async create(req, res) {
@@ -14,7 +14,7 @@ class UserController {
 
       const user = await User.create(userObj);
 
-      res.json(userResource(user));
+      res.json(user);
     } catch (e) {
       res.status(400).json({
         erros: e,

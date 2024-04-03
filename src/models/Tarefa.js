@@ -13,6 +13,12 @@ export default class Tarefa extends Model {
           },
         },
       },
+      user_id: {
+        type: Sequelize.INTEGER
+      },
+      image_id: {
+        type: Sequelize.INTEGER
+      }
     }, {
       sequelize,
     });

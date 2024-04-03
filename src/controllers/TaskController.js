@@ -1,5 +1,7 @@
 import Tarefa from '../models/Tarefa';
 import User from '../models/User';
+import taskFormatter from '../formatter/tarkFormatter'
+import UploaderController from './UploaderController';
 
 class TaskController {
   async findAll(req, res) {
@@ -18,25 +20,26 @@ class TaskController {
     res.json(tarefas);
   }
 
-  async create(req, res) {
-    const novaTarefa = await Tarefa.create(req.body);
-
-    res.json(novaTarefa);
-  }
-
   async show(req, res) {
     try {
       const { task } = req.params;
 
+      const user = await User.findOne({
+        where : {
+          email: req.userEmail
+        }
+      })
+
       const findTask = await Tarefa.findOne({
         where: {
-          tarefas: task
+          tarefas: task,
+          user_id: user.id
         }
       });
 
       if(!findTask){
         return res.status(200).json({
-          ok: false
+          erro: 'Tarefa não encontrada'
         })
       }
       return res.json({
@@ -47,9 +50,29 @@ class TaskController {
     }
   }
 
+  async create(req, res) {
+
+    const user = await User.findOne({
+      where : {
+        email: req.userEmail
+      }
+    })
+
+    const { tarefas } = req.body
+    const novaTarefa = await Tarefa.create(taskFormatter(user.id, tarefas));
+
+    res.json(novaTarefa);
+  }
+
   async update(req, res) {
     try {
       const { task } = req.params;
+
+      const user = await User.findOne({
+        where : {
+          email: req.userEmail
+        }
+      })
 
       if(!task){
         return res.status(400).json({
@@ -59,7 +82,8 @@ class TaskController {
 
       const findTask = await Tarefa.findOne({
         where: {
-          tarefas: task
+          tarefas: task,
+          user_id: user.id
         }
       });
 
