@@ -2,6 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import task from './src/routes/taskRoutes';
 import user from './src/routes/userRoutes';
+import auth from './src/routes/authRoutes';
 import uploader from './src/routes/uploaderRoutes';
 import cors from 'cors'
 import './src/database';
@@ -28,6 +29,7 @@ class App {
     this.app.use('/tasks', LoginRequired ,task);
     this.app.use('/users', user);
     this.app.use('/uploader', uploader)
+    this.app.use('/login', auth)
   }
 }
 export default new App().app;
