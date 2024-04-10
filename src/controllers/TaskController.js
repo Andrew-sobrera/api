@@ -1,7 +1,7 @@
 import Tarefa from '../models/Tarefa';
 import User from '../models/User';
 import taskFormatter from '../formatter/tarkFormatter'
-import UploaderController from './UploaderController';
+import Image from '../models/Image';
 
 class TaskController {
   async findAll(req, res) {
@@ -14,8 +14,11 @@ class TaskController {
     
     const tarefas = await Tarefa.findAll({
       where: {
-        user_id : user.id
-      }
+        user_id: user.id,
+      },
+       include: {
+         model: Image // Certifique-se de referenciar o modelo Image corretamente
+       }
     });
     res.json(tarefas);
   }
@@ -32,7 +35,7 @@ class TaskController {
 
       const findTask = await Tarefa.findOne({
         where: {
-          tarefas: task,
+          id: task,
           user_id: user.id
         }
       });
@@ -82,7 +85,7 @@ class TaskController {
 
       const findTask = await Tarefa.findOne({
         where: {
-          tarefas: task,
+          id: task,
           user_id: user.id
         }
       });
@@ -113,7 +116,7 @@ class TaskController {
 
       const findTask = await Tarefa.findOne({
         where:{
-          tarefas: task
+          id: task
         }
       });
 

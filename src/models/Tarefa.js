@@ -18,10 +18,18 @@ export default class Tarefa extends Model {
       },
       image_id: {
         type: Sequelize.INTEGER
+      },
+      check: {
+        type: Sequelize.BOOLEAN,
+        defaultValue: false // Você pode definir um valor padrão se necessário
       }
     }, {
       sequelize,
     });
     return this;
+  }
+
+  static associate(models) {
+    this.belongsTo(models.Image, { foreignKey: 'image_id' });
   }
 }
