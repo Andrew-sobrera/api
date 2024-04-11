@@ -12,7 +12,7 @@ dotenv.config();
 
 const corsOptions = {
   origin: 'http://ec2-54-211-214-149.compute-1.amazonaws.com:3000',
-  methods: 'GET,POST', // Especifique os métodos permitidos
+  methods: 'GET,POST,PUT,DELETE', // Especifique os métodos permitidos
   allowedHeaders: ['Content-Type', 'Authorization'], // Especifique os cabeçalhos permitidos
   exposedHeaders: ['Content-Length'], // Especifique os cabeçalhos expostos
 };
