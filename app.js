@@ -10,6 +10,10 @@ import LoginRequired from './src/middlewares/LoginRequired';
 
 dotenv.config();
 
+const corsOptions = {
+  origin: 'http://ec2-54-211-214-149.compute-1.amazonaws.com:3000',
+};
+
 class App {
   constructor() {
     this.app = express();
@@ -19,13 +23,13 @@ class App {
   
 
   middlewares() {
-    this.app.use(cors());
+    this.app.use(cors(corsOptions));
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(express.json());
   }
 
   routes() {
-    this.app.use(cors());
+    this.app.use(cors(corsOptions));
     this.app.use('/tasks', LoginRequired ,task);
     this.app.use('/users', user);
     this.app.use('/uploader', uploader)
