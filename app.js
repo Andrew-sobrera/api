@@ -11,7 +11,10 @@ import LoginRequired from './src/middlewares/LoginRequired';
 dotenv.config();
 
 const corsOptions = {
-  origin: '*',
+  origin: 'http://ec2-54-211-214-149.compute-1.amazonaws.com:3000',
+  methods: 'GET,POST', // Especifique os métodos permitidos
+  allowedHeaders: ['Content-Type', 'Authorization'], // Especifique os cabeçalhos permitidos
+  exposedHeaders: ['Content-Length'], // Especifique os cabeçalhos expostos
 };
 
 class App {
