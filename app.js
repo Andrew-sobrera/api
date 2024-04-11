@@ -4,7 +4,7 @@ import task from './src/routes/taskRoutes';
 import user from './src/routes/userRoutes';
 import auth from './src/routes/authRoutes';
 import uploader from './src/routes/uploaderRoutes';
-import cors from 'cors'
+import cors from 'cors';
 import './src/database';
 import LoginRequired from './src/middlewares/LoginRequired';
 
@@ -21,7 +21,6 @@ class App {
     this.routes();
   }
   
-
   middlewares() {
     this.app.use(cors(corsOptions));
     this.app.use(express.urlencoded({ extended: true }));
@@ -29,11 +28,11 @@ class App {
   }
 
   routes() {
-    this.app.use(cors(corsOptions));
-    this.app.use('/tasks', LoginRequired ,task);
+    this.app.use('/tasks', LoginRequired, task);
     this.app.use('/users', user);
-    this.app.use('/uploader', uploader)
-    this.app.use('/login', auth)
+    this.app.use('/uploader', uploader);
+    this.app.use('/login', auth);
   }
 }
+
 export default new App().app;
