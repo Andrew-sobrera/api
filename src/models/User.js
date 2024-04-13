@@ -42,6 +42,10 @@ export default class User extends Model {
         type: Sequelize.STRING,
         defaultValue: '',
       },
+      img: {
+        type: Sequelize.STRING,
+        defaultValue: '',
+      },
     }, {
       sequelize,
     });

@@ -7,11 +7,12 @@ import uploader from './src/routes/uploaderRoutes';
 import cors from 'cors';
 import './src/database';
 import LoginRequired from './src/middlewares/LoginRequired';
+import delay from 'express-delay';
 
 dotenv.config();
 
 const corsOptions = {
-  origin: 'http://ec2-54-211-214-149.compute-1.amazonaws.com:3000',
+  origin: ['http://ec2-54-211-214-149.compute-1.amazonaws.com:3000', 'http://localhost:3000'],
   methods: 'GET,POST,PUT,DELETE', // Especifique os métodos permitidos
   allowedHeaders: ['Content-Type', 'Authorization'], // Especifique os cabeçalhos permitidos
   exposedHeaders: ['Content-Length'], // Especifique os cabeçalhos expostos
@@ -26,6 +27,7 @@ class App {
   
   middlewares() {
     this.app.use(cors(corsOptions));
+    this.app.use(delay(2000))
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(express.json());
   }
