@@ -2,21 +2,26 @@
 
 namespace App\Services;
 
+use App\Exceptions\BaseException;
 use App\Repositories\EventRepository;
 use App\Repositories\TicketEventRepository;
-use Illuminate\Support\Facades\DB;
-use App\Exceptions\BaseException;
-
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
 
 class EventService
 {
     protected $eventRepository;
     protected $ticketEventRepository;
+    protected $cloudinaryService;
 
-    public function __construct(EventRepository $eventRepository, TicketEventRepository $ticketEventRepository)
-    {
+    public function __construct(
+        EventRepository $eventRepository,
+        TicketEventRepository $ticketEventRepository,
+        CloudinaryService $cloudinaryService
+    ) {
         $this->eventRepository = $eventRepository;
         $this->ticketEventRepository = $ticketEventRepository;
+        $this->cloudinaryService = $cloudinaryService;
     }
 
     public function getAll()
@@ -32,7 +37,8 @@ class EventService
     public function create(array $data)
     {
         try {
-            $event = $this->eventRepository->create($data);
+            $eventData = Arr::only($data, ['name', 'date', 'category', 'status', 'ticket_type', 'slug']);
+            $event = $this->eventRepository->create($eventData);
 
             if ($data['ticket_type'] === 'simple') {
                 $this->ticketEventRepository->create([
@@ -41,9 +47,32 @@ class EventService
                     'quantity' => $data['ticket']['quantity'],
                 ]);
             }
-            return $event;
+
+            return $event->load('tickets');
         } catch (\Exception $e) {
             throw new BaseException($e->getMessage(), 500);
         }
     }
-}       
+
+    public function uploadBanner(int $id, UploadedFile $banner)
+    {
+        try {
+            $event = $this->eventRepository->getById($id);
+
+            if ($event->banner_public_id) {
+                $this->cloudinaryService->delete($event->banner_public_id);
+            }
+
+            $upload = $this->cloudinaryService->uploadBanner($banner);
+
+            $this->eventRepository->update($event, [
+                'banner_url' => $upload['url'],
+                'banner_public_id' => $upload['public_id'],
+            ]);
+
+            return $event->fresh('tickets');
+        } catch (\Exception $e) {
+            throw new BaseException($e->getMessage(), 500);
+        }
+    }
+}

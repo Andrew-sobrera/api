@@ -10,12 +10,12 @@ class EventPublicController extends Controller
 {
    public function index()
    {
-    return EventResource::collection(Event::all());
+    return EventResource::collection(Event::with('tickets')->get());
    }
 
    public function getBySlug(string $slug)
    {
-    $event = Event::where('slug', $slug)->first();
+    $event = Event::with('tickets')->where('slug', $slug)->first();
     if (!$event) {
         return response()->json(['message' => 'Event not found'], 404);
     }

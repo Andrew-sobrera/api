@@ -6,7 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Event extends Model
 {
-    protected $fillable = ['name', 'date', 'category', 'status', 'ticket_type', 'slug'];
+    protected $fillable = ['name', 'date', 'category', 'status', 'ticket_type', 'slug', 'banner_url', 'banner_public_id'];
+
+    protected $hidden = [
+        'banner_public_id',
+    ];
 
     public function tickets()
     {

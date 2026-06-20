@@ -12,12 +12,17 @@ Route::get('/user', function (Request $request) {
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
+Route::post('/email/verification-notification', [AuthController::class, 'resendVerificationEmail']);
+Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+    ->middleware('signed')
+    ->name('verification.verify');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('events')->group(function () {
         Route::get('/', [EventController::class, 'index']);
         Route::get('/{id}', [EventController::class, 'show']);
         Route::post('/', [EventController::class, 'create']);
+        Route::post('/{id}/banner', [EventController::class, 'uploadBanner']);
     });
 });
 

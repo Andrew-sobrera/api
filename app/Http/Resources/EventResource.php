@@ -22,7 +22,9 @@ class EventResource extends JsonResource
             'category' => $this->category,
             'status' => $this->status,
             'ticket_type' => $this->ticket_type,
-            'tickets' => TicketEventResource::collection($this->tickets),
+            'slug' => $this->slug,
+            'banner_url' => $this->banner_url,
+            'tickets' => TicketEventResource::collection($this->whenLoaded('tickets')),
         ];
     }
 }

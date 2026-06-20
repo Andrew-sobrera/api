@@ -15,16 +15,23 @@ class EventRepository
 
     public function getAll()
     {
-        return $this->model->all();
+        return $this->model->with('tickets')->get();
     }
 
     public function getById(int $id)
     {
-        return $this->model->findOrFail($id);
+        return $this->model->with('tickets')->findOrFail($id);
     }
 
     public function create(array $data)
     {
         return $this->model->create($data);
     }
-}   
+
+    public function update(Event $event, array $data)
+    {
+        $event->update($data);
+
+        return $event;
+    }
+}
