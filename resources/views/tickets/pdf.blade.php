@@ -2,37 +2,21 @@
 <html lang="pt-BR">
 <head>
     <meta charset="utf-8">
-    <title>Ingresso {{ $ticket->hash }}</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 24px; color: #1a1a2e; }
-        .ticket { border: 2px dashed #3d5a80; border-radius: 12px; padding: 24px; max-width: 480px; }
-        h1 { font-size: 1.25rem; margin: 0 0 8px; }
-        .meta { color: #666; font-size: 0.875rem; margin-bottom: 16px; }
-        .code { font-family: monospace; font-size: 1rem; background: #f4f4f8; padding: 8px 12px; border-radius: 6px; }
-        .qr { margin-top: 16px; }
-        .qr img { max-width: 180px; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ingresso — {{ $ticket->event?->name ?? 'Evento' }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Pacifico&display=swap" rel="stylesheet">
+    @include('tickets.partials.styles')
 </head>
 <body>
-    <div class="ticket">
-        <h1>{{ $ticket->event?->name ?? 'Evento' }}</h1>
-        <p class="meta">
-            {{ $ticket->event?->date?->format('d/m/Y H:i') }}
-            @if($ticket->event?->location)
-                · {{ $ticket->event->location }}
-            @endif
-        </p>
-        <p><strong>{{ $ticket->eventTicket?->name ?? 'Ingresso' }}</strong></p>
-        <p><strong>Comprador:</strong> {{ $ticket->buyer_name }}</p>
-        @if($ticket->seat)
-            <p><strong>Assento:</strong> {{ $ticket->seat->label ?? $ticket->seat->id }}</p>
-        @endif
-        <p class="code">{{ $ticket->hash }}</p>
-        @if($ticket->qr_code_url)
-            <div class="qr">
-                <img src="{{ $ticket->qr_code_url }}" alt="QR Code">
-            </div>
-        @endif
+<div class="page">
+    @include('tickets.partials.physical-ticket', ['ticket' => $ticket])
+
+    <div class="page__actions">
+        <button type="button" class="page__print-btn" onclick="window.print()">
+            Imprimir / Salvar como PDF
+        </button>
+        <p class="page__hint">Use a opção &quot;Salvar como PDF&quot; na janela de impressão do navegador.</p>
     </div>
+</div>
 </body>
 </html>
