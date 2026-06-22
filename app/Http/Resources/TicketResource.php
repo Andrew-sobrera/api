@@ -23,6 +23,7 @@ class TicketResource extends JsonResource
             'hash' => $this->hash,
             'status' => $this->status,
             'used_at' => $this->used_at,
+            'created_at' => $this->created_at?->toIso8601String(),
             'event' => new EventResource($this->whenLoaded('event')),
             'ticket_type' => new TicketEventResource($this->whenLoaded('eventTicket')),
             'sector' => new EventSectorResource($this->whenLoaded('sector')),
