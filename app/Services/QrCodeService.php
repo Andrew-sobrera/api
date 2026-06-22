@@ -18,12 +18,14 @@ class QrCodeService
      */
     public function generate(string $data): array
     {
+        $size = max(200, (int) config('tickets.qr_size', 800));
+
         $qrCode = new QrCode(
             data: $data,
             encoding: new Encoding('UTF-8'),
             errorCorrectionLevel: ErrorCorrectionLevel::High,
-            size: 400,
-            margin: 10,
+            size: $size,
+            margin: (int) max(8, round($size * 0.025)),
         );
 
         ['writer' => $writer, 'mime_type' => $mimeType, 'extension' => $extension] = $this->resolveWriter();

@@ -9,13 +9,14 @@ class QrCodeServiceTest extends TestCase
 {
     public function test_generates_svg_qr_code_without_gd(): void
     {
-        config(['tickets.qr_writer' => 'svg']);
+        config(['tickets.qr_writer' => 'svg', 'tickets.qr_size' => 800]);
 
         $result = app(QrCodeService::class)->generate('ticket-hash-123');
 
         $this->assertSame('svg', $result['extension']);
         $this->assertSame('image/svg+xml', $result['mime_type']);
         $this->assertStringContainsString('<svg', $result['content']);
+        $this->assertStringContainsString('viewBox="0 0 840 840"', $result['content']);
     }
 
     public function test_falls_back_to_svg_when_png_requested_without_gd(): void
