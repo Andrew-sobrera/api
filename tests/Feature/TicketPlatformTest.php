@@ -331,6 +331,60 @@ class TicketPlatformTest extends TestCase
         ]);
     }
 
+    public function test_ticket_generation_retries_missing_qr_without_duplicating_tickets(): void
+    {
+        $cloudinary = Mockery::mock(CloudinaryService::class);
+        $cloudinary->shouldReceive('uploadQrCode')
+            ->once()
+            ->andReturn([
+                'url' => 'https://res.cloudinary.com/test/qr.svg',
+                'public_id' => 'tickets/qr/retry',
+            ]);
+        $this->instance(CloudinaryService::class, $cloudinary);
+
+        $user = User::factory()->create(['email' => 'retry@test.com']);
+        $event = Event::factory()->create();
+        $ticketEvent = TicketEvent::factory()->create(['event_id' => $event->id, 'quantity' => 5]);
+
+        $order = \App\Models\Order::create([
+            'user_id' => $user->id,
+            'event_id' => $event->id,
+            'status' => OrderStatus::PAID,
+            'payment_status' => PaymentStatus::PAID,
+            'payment_method' => PaymentMethod::PIX,
+            'total_amount' => 5000,
+        ]);
+
+        \App\Models\OrderItem::create([
+            'order_id' => $order->id,
+            'event_ticket_id' => $ticketEvent->id,
+            'quantity' => 1,
+            'unit_price' => 5000,
+            'total_price' => 5000,
+        ]);
+
+        $hashService = app(TicketHashService::class);
+        $ticket = Ticket::create([
+            'order_id' => $order->id,
+            'event_id' => $event->id,
+            'event_ticket_id' => $ticketEvent->id,
+            'buyer_name' => $user->name,
+            'buyer_email' => $user->email,
+            'status' => TicketStatus::GENERATED,
+            'hash' => (string) \Illuminate\Support\Str::uuid(),
+            'qr_code_url' => null,
+        ]);
+        $ticket->update(['hash' => $hashService->generate($event, $user->email, $ticket->id)]);
+
+        app(\App\Services\TicketGenerationService::class)->generateForOrder($order->fresh(['items', 'user', 'event']));
+
+        $this->assertDatabaseCount('tickets', 1);
+        $this->assertDatabaseHas('tickets', [
+            'id' => $ticket->id,
+            'qr_code_url' => 'https://res.cloudinary.com/test/qr.svg',
+        ]);
+    }
+
     public function test_ticket_validation_endpoint(): void
     {
         $cloudinary = Mockery::mock(CloudinaryService::class);

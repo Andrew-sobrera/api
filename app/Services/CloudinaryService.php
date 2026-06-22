@@ -2,23 +2,18 @@
 
 namespace App\Services;
 
-use App\Models\Order;
-use App\Models\Ticket;
-use Endroid\QrCode\Encoding\Encoding;
-use Endroid\QrCode\ErrorCorrectionLevel;
-use Endroid\QrCode\QrCode;
-use Endroid\QrCode\Writer\PngWriter;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class CloudinaryService
 {
-    private \Cloudinary\Cloudinary $cloudinary;
-
-    public function __construct()
+    public function __construct(protected QrCodeService $qrCodeService)
     {
         $this->cloudinary = new \Cloudinary\Cloudinary(config('cloudinary.cloud_url'));
     }
+
+    private \Cloudinary\Cloudinary $cloudinary;
 
     public function uploadFloorPlan(UploadedFile $file): array
     {
@@ -32,21 +27,17 @@ class CloudinaryService
 
     public function uploadQrCode(string $content, string $folder = 'tickets/qr'): array
     {
-        $qrCode = new QrCode(
-            data: $content,
-            encoding: new Encoding('UTF-8'),
-            errorCorrectionLevel: ErrorCorrectionLevel::High,
-            size: 400,
-            margin: 10,
-        );
+        $qr = $this->qrCodeService->generate($content);
 
-        $writer = new PngWriter;
-        $result = $writer->write($qrCode);
-
-        $tempPath = sys_get_temp_dir().'/'.Str::uuid().'.png';
-        file_put_contents($tempPath, $result->getString());
+        $tempPath = sys_get_temp_dir().'/'.Str::uuid().'.'.$qr['extension'];
+        file_put_contents($tempPath, $qr['content']);
 
         try {
+            Log::info('Uploading ticket QR code to Cloudinary', [
+                'format' => $qr['extension'],
+                'folder' => $folder,
+            ]);
+
             return $this->uploadImage($tempPath, $folder);
         } finally {
             @unlink($tempPath);

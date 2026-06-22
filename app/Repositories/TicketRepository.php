@@ -16,6 +16,24 @@ class TicketRepository
         return $this->model->newQuery()->where('order_id', $orderId)->exists();
     }
 
+    public function getForOrder(int $orderId)
+    {
+        return $this->model->newQuery()
+            ->where('order_id', $orderId)
+            ->orderBy('id')
+            ->get();
+    }
+
+    public function countForOrderLine(int $orderId, int $eventTicketId, ?int $seatId = null): int
+    {
+        return $this->model->newQuery()
+            ->where('order_id', $orderId)
+            ->where('event_ticket_id', $eventTicketId)
+            ->when($seatId, fn ($query) => $query->where('seat_id', $seatId))
+            ->when(! $seatId, fn ($query) => $query->whereNull('seat_id'))
+            ->count();
+    }
+
     public function create(array $data): Ticket
     {
         return $this->model->create($data);
