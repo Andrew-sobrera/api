@@ -15,12 +15,27 @@ class EventRepository
 
     public function getAll()
     {
-        return $this->model->with('tickets')->get();
+        return $this->model->with(['tickets.batches', 'sectors.tickets', 'sectors.seats'])->get();
     }
 
     public function getById(int $id)
     {
-        return $this->model->with('tickets')->findOrFail($id);
+        return $this->model->with(['tickets.batches', 'sectors.tickets', 'sectors.seats'])->findOrFail($id);
+    }
+
+    public function getBySlug(string $slug)
+    {
+        return $this->model->with(['tickets.batches', 'sectors.tickets', 'sectors.seats'])
+            ->where('slug', $slug)
+            ->where('status', 'active')
+            ->firstOrFail();
+    }
+
+    public function getActivePublic()
+    {
+        return $this->model->with(['tickets.batches', 'sectors'])
+            ->where('status', 'active')
+            ->get();
     }
 
     public function create(array $data)

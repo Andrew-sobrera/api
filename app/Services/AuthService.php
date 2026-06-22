@@ -40,6 +40,7 @@ class AuthService
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'document' => $request->document,
             'role' => $request->role,
         ]);
 

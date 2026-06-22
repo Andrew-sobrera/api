@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Mail\VerifyEmailMail;
 use Illuminate\Auth\Notifications\VerifyEmail;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
@@ -13,7 +15,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(
+            \App\Services\Payments\PaymentGatewayInterface::class,
+            \App\Services\Payments\AsaasPaymentGateway::class
+        );
     }
 
     /**
@@ -21,6 +26,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        JsonResource::withoutWrapping();
+
         VerifyEmail::createUrlUsing(function ($notifiable) {
             return URL::temporarySignedRoute(
                 'verification.verify',
@@ -30,6 +37,10 @@ class AppServiceProvider extends ServiceProvider
                     'hash' => sha1($notifiable->getEmailForVerification()),
                 ]
             );
+        });
+
+        VerifyEmail::toMailUsing(function (object $notifiable, string $url) {
+            return new VerifyEmailMail($notifiable, $url);
         });
     }
 }

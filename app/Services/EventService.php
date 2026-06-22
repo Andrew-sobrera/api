@@ -4,24 +4,17 @@ namespace App\Services;
 
 use App\Exceptions\BaseException;
 use App\Repositories\EventRepository;
-use App\Repositories\TicketEventRepository;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 
 class EventService
 {
-    protected $eventRepository;
-    protected $ticketEventRepository;
-    protected $cloudinaryService;
-
     public function __construct(
-        EventRepository $eventRepository,
-        TicketEventRepository $ticketEventRepository,
-        CloudinaryService $cloudinaryService
+        protected EventRepository $eventRepository,
+        protected EventTicketSetupService $ticketSetupService,
+        protected CloudinaryService $cloudinaryService
     ) {
-        $this->eventRepository = $eventRepository;
-        $this->ticketEventRepository = $ticketEventRepository;
-        $this->cloudinaryService = $cloudinaryService;
     }
 
     public function getAll()
@@ -37,18 +30,41 @@ class EventService
     public function create(array $data)
     {
         try {
-            $eventData = Arr::only($data, ['name', 'date', 'category', 'status', 'ticket_type', 'slug']);
-            $event = $this->eventRepository->create($eventData);
-
-            if ($data['ticket_type'] === 'simple') {
-                $this->ticketEventRepository->create([
-                    'event_id' => $event->id,
-                    'price' => $data['ticket']['price'],
-                    'quantity' => $data['ticket']['quantity'],
+            return DB::transaction(function () use ($data) {
+                $eventData = Arr::only($data, [
+                    'name', 'description', 'location', 'date', 'category', 'status', 'ticket_type', 'has_seats', 'slug',
                 ]);
-            }
+                $event = $this->eventRepository->create($eventData);
 
-            return $event->load('tickets');
+                $this->ticketSetupService->setup($event, $data);
+
+                return $this->eventRepository->getById($event->id);
+            });
+        } catch (\Exception $e) {
+            throw new BaseException($e->getMessage(), 500);
+        }
+    }
+
+    public function update(int $id, array $data)
+    {
+        try {
+            return DB::transaction(function () use ($id, $data) {
+                $event = $this->eventRepository->getById($id);
+
+                $eventData = Arr::only($data, [
+                    'name', 'description', 'location', 'date', 'category', 'status', 'ticket_type', 'has_seats', 'slug',
+                ]);
+
+                if (! empty($eventData)) {
+                    $this->eventRepository->update($event, $eventData);
+                }
+
+                if (isset($data['ticket_type'])) {
+                    $this->ticketSetupService->sync($event->fresh(), $data);
+                }
+
+                return $this->eventRepository->getById($id);
+            });
         } catch (\Exception $e) {
             throw new BaseException($e->getMessage(), 500);
         }
@@ -70,7 +86,7 @@ class EventService
                 'banner_public_id' => $upload['public_id'],
             ]);
 
-            return $event->fresh('tickets');
+            return $this->eventRepository->getById($id);
         } catch (\Exception $e) {
             throw new BaseException($e->getMessage(), 500);
         }

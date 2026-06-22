@@ -2,24 +2,27 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Event;
 use App\Http\Resources\EventResource;
+use App\Repositories\EventRepository;
+use App\Services\TicketBatchService;
 
 class EventPublicController extends Controller
 {
-   public function index()
-   {
-    return EventResource::collection(Event::with('tickets')->get());
-   }
-
-   public function getBySlug(string $slug)
-   {
-    $event = Event::with('tickets')->where('slug', $slug)->first();
-    if (!$event) {
-        return response()->json(['message' => 'Event not found'], 404);
+    public function __construct(
+        protected EventRepository $eventRepository,
+        protected TicketBatchService $batchService,
+    ) {
     }
-    return new EventResource($event);
-   }
-   
-}   
+
+    public function index()
+    {
+        return EventResource::collection($this->eventRepository->getActivePublic());
+    }
+
+    public function getBySlug(string $slug)
+    {
+        $event = $this->eventRepository->getBySlug($slug);
+
+        return new EventResource($event);
+    }
+}

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Services\AuthService;
@@ -72,16 +73,16 @@ class AuthController extends Controller
         return response()->json(['message' => 'Verification email sent']);
     }
 
-    public function verifyEmail(Request $request, int $id, string $hash)
+    public function verifyEmail(Request $request, int $id, string $hash): RedirectResponse
     {
         $user = User::findOrFail($id);
 
         if (! hash_equals($hash, sha1($user->getEmailForVerification()))) {
-            return response()->json(['message' => 'Invalid verification link'], 403);
+            return $this->redirectAfterVerification('invalid');
         }
 
         if (! $request->hasValidSignature()) {
-            return response()->json(['message' => 'Verification link expired'], 403);
+            return $this->redirectAfterVerification('expired');
         }
 
         if (! $user->hasVerifiedEmail()) {
@@ -89,6 +90,13 @@ class AuthController extends Controller
             event(new Verified($user));
         }
 
-        return response()->json(['message' => 'Email verified successfully']);
+        return $this->redirectAfterVerification('success');
+    }
+
+    private function redirectAfterVerification(string $status): RedirectResponse
+    {
+        $baseUrl = rtrim(config('app.frontend_url'), '/');
+
+        return redirect()->away("{$baseUrl}?email_verified={$status}");
     }
 }
