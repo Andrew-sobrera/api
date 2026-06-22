@@ -9,6 +9,7 @@ class CartItem extends Model
 {
     protected $fillable = [
         'user_id',
+        'cart_id',
         'event_id',
         'event_ticket_id',
         'sector_id',
@@ -29,6 +30,11 @@ class CartItem extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function cart(): BelongsTo
+    {
+        return $this->belongsTo(Cart::class);
     }
 
     public function event(): BelongsTo

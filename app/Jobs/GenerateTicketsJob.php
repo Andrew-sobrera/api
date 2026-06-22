@@ -15,12 +15,17 @@ class GenerateTicketsJob implements ShouldQueue
 
     public function __construct(public int $orderId)
     {
+        $this->onQueue(QueueNames::TICKETS_GENERATION);
     }
 
     public function handle(TicketGenerationService $ticketGenerationService): void
     {
         $order = \App\Models\Order::findOrFail($this->orderId);
         $ticketGenerationService->generateForOrder($order);
+
+        SendTicketsEmailJob::dispatch($this->orderId)
+            ->onConnection(config('queue.default'))
+            ->onQueue(QueueNames::EMAILS);
     }
 
     public function backoff(): array

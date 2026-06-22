@@ -11,6 +11,7 @@ class TicketReservation extends Model
     protected $fillable = [
         'event_ticket_id',
         'order_id',
+        'cart_id',
         'seat_id',
         'batch_id',
         'quantity',
@@ -35,6 +36,11 @@ class TicketReservation extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function cart(): BelongsTo
+    {
+        return $this->belongsTo(Cart::class);
     }
 
     public function seat(): BelongsTo

@@ -8,6 +8,7 @@ use App\Enums\OrderStatus;
 use App\Enums\ReservationStatus;
 use App\Jobs\CreatePaymentJob;
 use App\Jobs\ExpireTicketReservationJob;
+use App\Jobs\GenerateTicketsJob;
 use App\Jobs\ProcessAsaasWebhookJob;
 use App\Jobs\SendPurchaseEmailJob;
 use App\Mail\PaymentApprovedMail;
@@ -297,7 +298,7 @@ class CheckoutFlowTest extends TestCase
             'expires_at' => now()->addMinutes(15),
         ]);
 
-        Queue::fake([SendPurchaseEmailJob::class]);
+        Queue::fake([SendPurchaseEmailJob::class, GenerateTicketsJob::class]);
 
         app(PaymentWebhookService::class)->process('pay_approved', 'CONFIRMED');
 
@@ -311,6 +312,8 @@ class CheckoutFlowTest extends TestCase
             'id' => $reservation->id,
             'status' => ReservationStatus::CONFIRMED->value,
         ]);
+
+        Queue::assertPushed(GenerateTicketsJob::class, fn (GenerateTicketsJob $job) => $job->orderId === $order->id);
     }
 
     public function test_webhook_payment_failed(): void

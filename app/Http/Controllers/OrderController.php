@@ -15,7 +15,7 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         $orders = \App\Models\Order::query()
-            ->with(['items.eventTicket', 'event', 'issuedTickets'])
+            ->with(['items.eventTicket', 'event', 'issuedTickets', 'reservations'])
             ->where('user_id', $request->user()->id)
             ->orderByDesc('created_at')
             ->get();
@@ -31,6 +31,6 @@ class OrderController extends Controller
             abort(403);
         }
 
-        return new OrderResource($order->load('issuedTickets'));
+        return new OrderResource($order->load(['issuedTickets', 'event', 'reservations']));
     }
 }

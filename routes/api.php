@@ -15,6 +15,9 @@ use App\Http\Controllers\SeatMapController;
 use App\Http\Controllers\VenueMapTemplateController;
 use App\Http\Controllers\VenueController;
 use App\Http\Controllers\VenueMapVersionController;
+use App\Http\Controllers\UserAccountController;
+use App\Http\Controllers\PublicTicketController;
+use App\Http\Controllers\TicketPdfController;
 use App\Http\Controllers\PublicSeatController;
 
 Route::get('/user', function (Request $request) {
@@ -50,6 +53,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
+    Route::get('/orders/{id}/tickets/pdf', [TicketPdfController::class, 'orderPdf']);
+
+    Route::get('/user/dashboard', [UserAccountController::class, 'dashboard']);
 
     Route::get('/my-tickets', [TicketController::class, 'myTickets']);
     Route::get('/events/{eventId}/tickets', [TicketController::class, 'eventTickets']);
@@ -88,4 +94,6 @@ Route::prefix('public')->group(function () {
     Route::get('/events/{slug}', [EventPublicController::class, 'getBySlug']);
     Route::get('/events/{slug}/seat-map', [SeatMapController::class, 'publicShow']);
     Route::get('/sectors/{sectorId}/seats', [PublicSeatController::class, 'index']);
+    Route::get('/tickets/{hash}', [PublicTicketController::class, 'show']);
+    Route::get('/tickets/{hash}/pdf', [PublicTicketController::class, 'pdf']);
 });

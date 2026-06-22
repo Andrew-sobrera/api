@@ -7,6 +7,7 @@ use App\Jobs\GenerateTicketsJob;
 use App\Jobs\SendPurchaseEmailJob;
 use App\Mail\PaymentApprovedMail;
 use App\Mail\PaymentFailedMail;
+use App\Models\Order;
 use App\Repositories\EventTicketRepository;
 use App\Repositories\OrderRepository;
 use App\Support\QueueNames;
@@ -17,35 +18,62 @@ class PaymentWebhookService
     public function __construct(
         protected OrderRepository $orderRepository,
         protected EventTicketRepository $eventTicketRepository,
-        protected TicketAvailabilityCacheService $availabilityCache
+        protected TicketAvailabilityCacheService $availabilityCache,
+        protected PaymentWebhookAuditService $auditService,
     ) {
     }
 
-    public function process(string $paymentId, string $status): void
-    {
+    public function process(
+        string $paymentId,
+        string $status,
+        ?int $orderId = null,
+        ?string $eventName = null,
+        ?array $payload = null,
+    ): void {
         $order = $this->orderRepository->findByAsaasPaymentId($paymentId);
+
+        if (! $order && $orderId) {
+            $order = $this->orderRepository->findByIdIfExists($orderId);
+
+            if ($order && ! $order->asaas_payment_id) {
+                $this->orderRepository->updatePaymentData($order, [
+                    'asaas_payment_id' => $paymentId,
+                ]);
+            }
+        }
 
         if (! $order) {
             Log::warning('Order not found for Asaas payment', [
                 'payment_id' => $paymentId,
+                'order_id' => $orderId,
                 'status' => $status,
             ]);
+
+            $this->auditService->record($paymentId, $eventName, $status, 'order_not_found', $orderId, $payload);
 
             return;
         }
 
         if ($this->isApprovedStatus($status)) {
+            if ($order->payment_status?->value === 'PAID') {
+                $this->auditService->record($paymentId, $eventName, $status, 'duplicate', $order->id, $payload);
+
+                return;
+            }
+
             $this->approvePayment($order);
+            $this->auditService->record($paymentId, $eventName, $status, 'processed', $order->id, $payload);
 
             return;
         }
 
         if ($this->isFailedStatus($status)) {
             $this->failPayment($order);
+            $this->auditService->record($paymentId, $eventName, $status, 'processed', $order->id, $payload);
         }
     }
 
-    private function approvePayment($order): void
+    private function approvePayment(Order $order): void
     {
         if ($order->payment_status?->value === 'PAID') {
             return;
@@ -55,28 +83,30 @@ class PaymentWebhookService
 
         $order->load('reservations');
 
-        if ($order->reservation) {
-            $this->orderRepository->updateReservation($order->reservation, [
-                'status' => ReservationStatus::CONFIRMED,
-            ]);
+        foreach ($order->reservations as $reservation) {
+            if ($reservation->status === ReservationStatus::RESERVED) {
+                $this->orderRepository->updateReservation($reservation, [
+                    'status' => ReservationStatus::CONFIRMED,
+                ]);
+            }
         }
 
-        foreach ($order->reservations as $reservation) {
-            $this->orderRepository->updateReservation($reservation, [
+        if ($order->reservation && $order->reservation->status === ReservationStatus::RESERVED) {
+            $this->orderRepository->updateReservation($order->reservation, [
                 'status' => ReservationStatus::CONFIRMED,
             ]);
         }
 
         GenerateTicketsJob::dispatch($order->id)
             ->onConnection(config('queue.default'))
-            ->onQueue(\App\Support\QueueNames::TICKETS_GENERATION);
+            ->onQueue(QueueNames::TICKETS_GENERATION);
 
         SendPurchaseEmailJob::dispatch($order->id, PaymentApprovedMail::class)
             ->onConnection(config('queue.default'))
             ->onQueue(QueueNames::EMAILS);
     }
 
-    private function failPayment($order): void
+    private function failPayment(Order $order): void
     {
         if (in_array($order->payment_status?->value, ['FAILED', 'PAID'], true)) {
             return;

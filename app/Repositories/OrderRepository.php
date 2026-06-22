@@ -41,8 +41,15 @@ class OrderRepository
     public function findById(int $id): Order
     {
         return $this->orderModel
-            ->with(['user', 'items.eventTicket', 'reservation', 'reservations'])
+            ->with(['user', 'items.eventTicket', 'reservation', 'reservations', 'event', 'issuedTickets'])
             ->findOrFail($id);
+    }
+
+    public function findByIdIfExists(int $id): ?Order
+    {
+        return $this->orderModel
+            ->with(['user', 'items.eventTicket', 'reservation', 'reservations'])
+            ->find($id);
     }
 
     public function findByAsaasPaymentId(string $paymentId): ?Order

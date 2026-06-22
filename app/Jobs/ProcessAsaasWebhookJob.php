@@ -19,14 +19,23 @@ class ProcessAsaasWebhookJob implements ShouldQueue
 
     public function __construct(
         public string $paymentId,
-        public string $status
+        public string $status,
+        public ?int $orderId = null,
+        public ?string $eventName = null,
+        public ?array $payload = null,
     ) {
         $this->onQueue(QueueNames::PAYMENTS_WEBHOOK);
     }
 
     public function handle(PaymentWebhookService $paymentWebhookService): void
     {
-        $paymentWebhookService->process($this->paymentId, $this->status);
+        $paymentWebhookService->process(
+            $this->paymentId,
+            $this->status,
+            $this->orderId,
+            $this->eventName,
+            $this->payload,
+        );
     }
 
     public function failed(?Throwable $exception): void
@@ -34,6 +43,7 @@ class ProcessAsaasWebhookJob implements ShouldQueue
         Log::error('ProcessAsaasWebhookJob failed permanently', [
             'payment_id' => $this->paymentId,
             'status' => $this->status,
+            'order_id' => $this->orderId,
             'message' => $exception?->getMessage(),
         ]);
     }

@@ -136,7 +136,80 @@ class CheckoutService
         $user = \App\Models\User::findOrFail($userId);
         $items = $this->cartService->toCheckoutItems($user, $eventId);
 
-        return $this->checkoutFromItems($userId, $items, $paymentMethod, $cardToken, clearCart: true, eventId: $eventId);
+        if (! $eventId) {
+            $eventId = \App\Models\TicketEvent::findOrFail($items[0]->eventTicketId)->event_id;
+        }
+
+        $cart = $this->cartService->activeCartForUserEvent($userId, $eventId);
+
+        if (! $cart) {
+            throw new InsufficientStockException('Carrinho expirado. Adicione os itens novamente.');
+        }
+
+        try {
+            $order = DB::transaction(function () use ($userId, $items, $paymentMethod, $cart) {
+                $totalAmount = 0;
+                $eventId = null;
+
+                foreach ($items as $item) {
+                    $totalAmount += $item->unitPrice * $item->quantity;
+                    $ticket = $this->eventTicketRepository->findForUpdate($item->eventTicketId);
+                    $eventId = $ticket->event_id;
+                }
+
+                $order = $this->orderRepository->createOrder([
+                    'user_id' => $userId,
+                    'event_id' => $eventId,
+                    'status' => OrderStatus::PENDING_PAYMENT,
+                    'payment_status' => PaymentStatus::PENDING,
+                    'payment_method' => $paymentMethod,
+                    'total_amount' => $totalAmount,
+                ]);
+
+                foreach ($items as $item) {
+                    $this->processLineItemFromCart($order, $item);
+                }
+
+                app(CartReservationService::class)->transferCartToOrder($cart, $order);
+
+                return $order->load(['items.eventTicket', 'reservations', 'user']);
+            });
+        } catch (\Throwable $exception) {
+            throw $exception;
+        }
+
+        try {
+            $order = $this->orderPaymentService->processPayment($order->id, $cardToken);
+        } catch (\Throwable $exception) {
+            $this->rollbackFailedPayment($order, $items);
+            Log::error('Checkout payment failed', [
+                'order_id' => $order->id,
+                'message' => $exception->getMessage(),
+            ]);
+
+            throw $exception;
+        }
+
+        $this->dispatchPostCheckoutJobs($order);
+        $this->cartService->clear($user, $eventId);
+
+        return $order;
+    }
+
+    private function processLineItemFromCart(Order $order, CheckoutLineItem $item): void
+    {
+        $lineTotal = $item->unitPrice * $item->quantity;
+
+        $this->orderRepository->createItem([
+            'order_id' => $order->id,
+            'event_ticket_id' => $item->eventTicketId,
+            'sector_id' => $item->sectorId,
+            'batch_id' => $item->batchId,
+            'seat_id' => $item->seatId,
+            'quantity' => $item->quantity,
+            'unit_price' => $item->unitPrice,
+            'total_price' => $lineTotal,
+        ]);
     }
 
     private function processLineItem(Order $order, CheckoutLineItem $item, $expiresAt): void
