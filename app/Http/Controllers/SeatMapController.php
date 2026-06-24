@@ -147,7 +147,7 @@ class SeatMapController extends Controller
     public function uploadFloorPlan(Request $request, int $eventId)
     {
         $request->validate([
-            'floor_plan' => ['required', 'image', 'max:10240'],
+            'floor_plan' => ['required', 'image', 'max:20480'],
         ]);
 
         return response()->json(
