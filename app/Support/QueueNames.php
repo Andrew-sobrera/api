@@ -13,4 +13,6 @@ class QueueNames
     public const EMAILS = 'emails';
 
     public const TICKETS_GENERATION = 'tickets.generation';
+
+    public const GEOCODING = 'geocoding';
 }

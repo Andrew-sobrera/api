@@ -5,10 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Cart extends Model
 {
     protected $fillable = [
+        'uuid',
         'user_id',
         'event_id',
         'status',
@@ -20,6 +22,15 @@ class Cart extends Model
         return [
             'expires_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Cart $cart) {
+            if (! $cart->uuid) {
+                $cart->uuid = (string) Str::uuid();
+            }
+        });
     }
 
     public function user(): BelongsTo

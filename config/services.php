@@ -35,4 +35,19 @@ return [
         ],
     ],
 
+    'google_maps' => [
+        'key' => env('GOOGLE_MAPS_API_KEY'),
+        'geocode_url' => env('GOOGLE_MAPS_GEOCODE_URL', 'https://maps.googleapis.com/maps/api/geocode/json'),
+        'region' => env('GOOGLE_MAPS_REGION', 'br'),
+        'language' => env('GOOGLE_MAPS_LANGUAGE', 'pt-BR'),
+    ],
+
+    'geocoding' => [
+        'timeout' => env('GEOCODING_TIMEOUT', 10),
+        'google_rate_limit_per_minute' => env('GEOCODING_GOOGLE_RATE_LIMIT', 50),
+        'osm_url' => env('GEOCODING_OSM_URL', 'https://nominatim.openstreetmap.org/search'),
+        'osm_user_agent' => env('GEOCODING_OSM_USER_AGENT', 'EvenTche/1.0 (contact@eventche.com)'),
+        'osm_country_codes' => env('GEOCODING_OSM_COUNTRY_CODES', 'br'),
+    ],
+
 ];

@@ -19,6 +19,8 @@ use App\Http\Controllers\UserAccountController;
 use App\Http\Controllers\PublicTicketController;
 use App\Http\Controllers\TicketPdfController;
 use App\Http\Controllers\PublicSeatController;
+use App\Http\Controllers\ProducerController;
+use App\Http\Controllers\PlaceController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -47,6 +49,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/{id}', [CartController::class, 'update']);
         Route::delete('/{id}', [CartController::class, 'destroy']);
         Route::delete('/', [CartController::class, 'clear']);
+        Route::post('/merge', [CartController::class, 'merge']);
+        Route::post('/checkout', [CheckoutController::class, 'store']);
     });
 
     Route::post('/checkout', [CheckoutController::class, 'store']);
@@ -76,14 +80,30 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/venues/{venueId}/maps/from-event', [VenueController::class, 'saveMapFromEvent']);
     Route::post('/venues/{venueId}/apply-to-event', [VenueController::class, 'applyToEvent']);
 
+    Route::get('/places', [PlaceController::class, 'index']);
+    Route::get('/places/{id}', [PlaceController::class, 'show']);
+    Route::post('/places', [PlaceController::class, 'store']);
+    Route::put('/places/{id}', [PlaceController::class, 'update']);
+    Route::patch('/places/{id}', [PlaceController::class, 'update']);
+    Route::delete('/places/{id}', [PlaceController::class, 'destroy']);
+
     Route::get('/map-templates', [VenueMapTemplateController::class, 'index']);
     Route::get('/map-templates/{id}', [VenueMapTemplateController::class, 'show']);
     Route::post('/map-templates', [VenueMapTemplateController::class, 'store']);
     Route::delete('/map-templates/{id}', [VenueMapTemplateController::class, 'destroy']);
+
 });
 
 Route::post('/seats/hold', [SeatMapController::class, 'hold']);
 Route::post('/seats/release-holds', [SeatMapController::class, 'releaseHolds']);
+
+Route::middleware('auth.optional')->prefix('cart')->group(function () {
+    Route::get('/{cartId}', [CartController::class, 'showByUuid'])
+        ->whereUuid('cartId');
+    Route::post('/items', [CartController::class, 'storeItem']);
+    Route::put('/items/{id}', [CartController::class, 'updateItem']);
+    Route::delete('/items/{id}', [CartController::class, 'destroyItem']);
+});
 
 Route::post('/webhooks/asaas', [AsaasWebhookController::class, 'handle']);
 

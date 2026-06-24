@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Validator;
 use App\Services\AuthService;
 use App\Models\User;
 use Illuminate\Auth\Events\Verified;
+use App\Http\Requests\RegisterRequest;
 
 class AuthController extends Controller
 {
@@ -33,27 +34,12 @@ class AuthController extends Controller
         return response()->json($this->authService->login($request));
     }
 
-    public function register(Request $request)
+    public function register(RegisterRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8',
-            'role' => 'required|string|in:user,producer',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()], 422);
-        }
-
-        $result = $this->authService->register($request);
-
-        $message = $result['email_sent']
-            ? 'User registered successfully. Verification email sent.'
-            : 'User registered successfully, but the verification email could not be sent. Use resend verification.';
+        $result = $this->authService->register($request->validated());
 
         return response()->json([
-            'message' => $message,
+            'message' => 'User registered successfully',
             'email_sent' => $result['email_sent'],
         ], 201);
     }

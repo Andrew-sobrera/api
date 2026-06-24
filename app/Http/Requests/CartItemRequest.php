@@ -20,7 +20,9 @@ class CartItemRequest extends FormRequest
         }
 
         return [
-            'event_ticket_id' => ['required', 'integer', 'exists:ticket_events,id'],
+            'event_ticket_id' => ['required_without:ticket_id', 'integer', 'exists:ticket_events,id'],
+            'ticket_id' => ['required_without:event_ticket_id', 'integer', 'exists:ticket_events,id'],
+            'cart_id' => ['nullable', 'uuid'],
             'quantity' => ['required', 'integer', 'min:1'],
             'batch_id' => ['nullable', 'integer', 'exists:ticket_batches,id'],
             'seat_id' => ['nullable', 'integer', 'exists:seats,id'],

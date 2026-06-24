@@ -4,19 +4,19 @@ namespace App\Services;
 
 use App\Exceptions\BaseException;
 use App\Exceptions\InvalidCredentialsException;
-use App\Repositories\UserRepository;
 use App\Models\User;
+use App\Repositories\ProducerRepository;
+use App\Repositories\UserRepository;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class AuthService
 {
-    protected $userRepository;
-
-    public function __construct(UserRepository $userRepository)
-    {
-        $this->userRepository = $userRepository;
+    public function __construct(
+        protected UserRepository $userRepository,
+        protected ProducerRepository $producerRepository,
+    ) {
     }
 
     public function login(Request $request): ?array
@@ -34,21 +34,36 @@ class AuthService
         ];
     }
 
-    public function register(Request $request): array
+    public function register(array $data): array
     {
-        $user = $this->userRepository->create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'document' => $request->document,
-            'role' => $request->role,
-        ]);
+        $user = DB::transaction(function () use ($data) {
+            if ($data['role'] === 'producer') {
+                $producer = $this->producerRepository->create([
+                    'name' => $data['company_name'],
+                    'cnpj' => $data['cnpj'],
+                ]);
 
-        $emailSent = $this->sendVerificationEmail($user);
+                return $this->userRepository->create([
+                    'name' => $data['name'],
+                    'email' => $data['email'],
+                    'password' => $data['password'],
+                    'role' => 'producer',
+                    'producer_id' => $producer->id,
+                ]);
+            }
+
+            return $this->userRepository->create([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => $data['password'],
+                'role' => 'user',
+                'document' => $data['document'] ?? null,
+            ]);
+        });
 
         return [
             'user' => $user,
-            'email_sent' => $emailSent,
+            'email_sent' => $this->sendVerificationEmail($user),
         ];
     }
 

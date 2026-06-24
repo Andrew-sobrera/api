@@ -26,6 +26,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'document',
         'password',
         'role',
+        'producer_id',
     ];
 
     /**
@@ -54,6 +55,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function orders()
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function producer()
+    {
+        return $this->belongsTo(Producer::class);
     }
 
     public function cartItems()
