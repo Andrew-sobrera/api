@@ -26,7 +26,14 @@ class SendTicketsEmailJob implements ShouldQueue
 
     public function handle(): void
     {
-        $order = Order::with(['user', 'event', 'issuedTickets.eventTicket'])->findOrFail($this->orderId);
+        $order = Order::with([
+            'user',
+            'event',
+            'issuedTickets.eventTicket',
+            'issuedTickets.event',
+            'issuedTickets.sector',
+            'issuedTickets.seat',
+        ])->findOrFail($this->orderId);
 
         if ($order->issuedTickets->isEmpty()) {
             return;
