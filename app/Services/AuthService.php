@@ -7,9 +7,11 @@ use App\Exceptions\InvalidCredentialsException;
 use App\Models\User;
 use App\Repositories\ProducerRepository;
 use App\Repositories\UserRepository;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class AuthService
 {
@@ -19,14 +21,51 @@ class AuthService
     ) {
     }
 
-    public function login(Request $request): ?array
+    public function login(array $data): array
     {
-        if (! Auth::attempt($request->only('email', 'password'))) {
+        if (! Auth::attempt([ 'email' => $data['email'], 'password' => $data['password'] ])) {
             throw new InvalidCredentialsException();
         }
 
         $user = Auth::user();
-        $token = $user->createToken($request->origin)->plainTextToken;
+        if (! $user instanceof User) {
+            throw new InvalidCredentialsException();
+        }
+
+        $tokenName = $data['device_name'] ?? 'api';
+        $token = $user->createToken($tokenName)->plainTextToken;
+
+        return [
+            'token' => $token,
+            'user' => $user,
+        ];
+    }
+
+    public function registerUser(array $data): array
+    {
+        $user = DB::transaction(function () use ($data) {
+            return $this->userRepository->create([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'password' => $data['password'],
+                'role' => $data['role'] ?? 'user',
+                'document' => $data['document'] ?? null,
+            ]);
+        });
+
+        $token = $user->createToken($data['device_name'] ?? 'api')->plainTextToken;
+
+        return [
+            'token' => $token,
+            'user' => $user,
+        ];
+    }
+
+    public function loginWithGoogle(array $payload): array
+    {
+        $user = $this->userRepository->createIfNotExistsByGoogle($payload);
+
+        $token = $user->createToken('google')->plainTextToken;
 
         return [
             'token' => $token,

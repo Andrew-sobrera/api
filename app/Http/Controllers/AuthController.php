@@ -24,14 +24,18 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'email' => 'required|string|email|max:255',
             'password' => 'required|string|min:8',
-            'origin' => 'required|string|max:255',
+            'origin' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['error' => $validator->errors()], 422);
         }
 
-        return response()->json($this->authService->login($request));
+        return response()->json($this->authService->login([
+            'email' => $request->input('email'),
+            'password' => $request->input('password'),
+            'device_name' => $request->input('origin') ?? 'api',
+        ]));
     }
 
     public function register(RegisterRequest $request)

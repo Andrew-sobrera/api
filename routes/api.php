@@ -3,6 +3,9 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Auth\GoogleAuthController;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\EventPublicController;
 use App\Http\Controllers\CheckoutController;
@@ -32,6 +35,14 @@ Route::post('/email/verification-notification', [AuthController::class, 'resendV
 Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
     ->middleware('signed')
     ->name('verification.verify');
+
+Route::prefix('auth')->group(function () {
+    Route::post('/register', [RegisterController::class, 'register']);
+    Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:5,1');
+    Route::get('/google/redirect', [GoogleAuthController::class, 'redirect']);
+    Route::get('/google/callback', [GoogleAuthController::class, 'callback']);
+    Route::post('/logout', [LoginController::class, 'logout'])->middleware('auth:sanctum');
+});
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('events')->group(function () {

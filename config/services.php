@@ -50,4 +50,10 @@ return [
         'osm_country_codes' => env('GEOCODING_OSM_COUNTRY_CODES', 'br'),
     ],
 
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
+    ],
+
 ];
