@@ -18,6 +18,11 @@ class LoginController extends Controller
         return response()->json($this->authService->login($request->validated()));
     }
 
+    public function me(Request $request)
+    {
+        return response()->json($request->user());
+    }
+
     public function logout(Request $request)
     {
         $request->user()?->currentAccessToken()?->delete();
