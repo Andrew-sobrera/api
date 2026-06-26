@@ -86,4 +86,9 @@ class Event extends Model
     {
         return $this->belongsTo(Place::class);
     }
+
+    public function producer()
+    {
+        return $this->belongsTo(Producer::class);
+    }
 }

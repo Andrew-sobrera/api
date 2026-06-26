@@ -25,7 +25,7 @@ class EventRepository
 
     public function getBySlug(string $slug)
     {
-        return $this->model->with(['tickets.batches', 'sectors.tickets', 'sectors.seats'])
+        return $this->model->with(['producer', 'tickets.batches', 'sectors.tickets', 'sectors.seats'])
             ->where('slug', $slug)
             ->where('status', 'active')
             ->firstOrFail();

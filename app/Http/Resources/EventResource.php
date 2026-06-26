@@ -38,6 +38,7 @@ class EventResource extends JsonResource
             'has_seats' => $this->has_seats,
             'slug' => $this->slug,
             'banner_url' => $this->banner_url,
+            'producer' => new ProducerResource($this->whenLoaded('producer')),
             'tickets' => TicketEventResource::collection($this->whenLoaded('tickets')),
             'sectors' => EventSectorResource::collection($this->whenLoaded('sectors')),
         ];
