@@ -76,7 +76,12 @@ class AsaasWebhookController extends Controller
         return match ($event) {
             'PAYMENT_CONFIRMED' => 'CONFIRMED',
             'PAYMENT_RECEIVED' => 'RECEIVED',
-            'PAYMENT_OVERDUE', 'PAYMENT_DELETED', 'PAYMENT_REFUNDED' => 'FAILED',
+            'PAYMENT_OVERDUE' => 'PAYMENT_OVERDUE',
+            'PAYMENT_DELETED' => 'PAYMENT_DELETED',
+            'PAYMENT_REFUNDED' => 'PAYMENT_REFUNDED',
+            'PAYMENT_CHARGEBACK_REQUESTED' => 'PAYMENT_CHARGEBACK_REQUESTED',
+            'PAYMENT_CHARGEBACK_DISPUTE' => 'PAYMENT_CHARGEBACK_DISPUTE',
+            'PAYMENT_CHARGEBACK_REVERSED' => 'PAYMENT_CHARGEBACK_REVERSED',
             default => $paymentStatus,
         };
     }

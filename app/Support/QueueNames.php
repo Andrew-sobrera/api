@@ -15,4 +15,8 @@ class QueueNames
     public const TICKETS_GENERATION = 'tickets.generation';
 
     public const GEOCODING = 'geocoding';
+
+    public const ASAAS_SUBACCOUNTS = 'asaas.subaccounts';
+
+    public const ASAAS_REFUNDS = 'asaas.refunds';
 }

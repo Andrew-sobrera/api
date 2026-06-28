@@ -2,24 +2,26 @@
 
 namespace App\Services\Payments;
 
+use App\DTOs\CheckoutFeeBreakdown;
 use App\Exceptions\BaseException;
 use App\Models\Order;
 use App\Models\User;
-use Illuminate\Http\Client\RequestException;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class AsaasPaymentGateway implements PaymentGatewayInterface
 {
-    public function createPixPayment(Order $order): array
+    public function __construct(private readonly AsaasClient $client)
     {
-        $payment = $this->createCharge($order, 'PIX');
+    }
+
+    public function createPixPayment(Order $order, ?CheckoutFeeBreakdown $breakdown = null): array
+    {
+        $payment = $this->createCharge($order, 'PIX', null, $breakdown);
 
         if (empty($payment['id'])) {
             return $payment;
         }
 
-        $pixQrCode = $this->fetchPixQrCode($payment['id']);
+        $pixQrCode = $this->client->getPixQrCode($payment['id']);
 
         return array_merge($payment, [
             'pix_payload' => $pixQrCode['payload'] ?? null,
@@ -29,83 +31,74 @@ class AsaasPaymentGateway implements PaymentGatewayInterface
         ]);
     }
 
-    public function createCreditCardPayment(Order $order, string $cardToken): array
+    public function createCreditCardPayment(Order $order, string $cardToken, ?CheckoutFeeBreakdown $breakdown = null): array
     {
-        return $this->createCharge($order, 'CREDIT_CARD', $cardToken);
+        return $this->createCharge($order, 'CREDIT_CARD', $cardToken, $breakdown);
     }
 
     public function getPaymentStatus(string $id): array
     {
-        $response = Http::withHeaders([
-            'access_token' => config('asaas.api_key'),
-        ])->get(config('asaas.url').'/payments/'.$id);
-
-        if ($response->failed()) {
-            Log::error('Asaas payment status fetch failed', [
-                'payment_id' => $id,
-                'status' => $response->status(),
-                'body' => $response->json(),
-            ]);
-
-            $response->throw();
-        }
-
-        return $response->json();
+        return $this->client->getPayment($id);
     }
 
-    private function createCharge(Order $order, string $billingType, ?string $cardToken = null): array
-    {
-        $order->loadMissing('user');
+    private function createCharge(
+        Order $order,
+        string $billingType,
+        ?string $cardToken = null,
+        ?CheckoutFeeBreakdown $breakdown = null,
+    ): array {
+        $order->loadMissing(['user', 'event.producer']);
+
+        $chargeValue = $breakdown
+            ? round($breakdown->totalCustomerAmount / 100, 2)
+            : round($order->total_amount / 100, 2);
 
         $payload = [
             'customer' => $this->getOrCreateCustomer($order->user),
             'billingType' => $billingType,
-            'value' => round($order->total_amount / 100, 2),
+            'value' => $chargeValue,
             'dueDate' => now()->addDays(config('asaas.payment_due_days'))->format('Y-m-d'),
             'externalReference' => (string) $order->id,
             'description' => 'Pedido #'.$order->id,
         ];
 
         if ($billingType === 'CREDIT_CARD') {
+            if (! $cardToken) {
+                throw new \InvalidArgumentException('Token do cartão é obrigatório para pagamento com cartão de crédito.');
+            }
+
             $payload['creditCardToken'] = $cardToken;
+
+            if ($breakdown && $breakdown->installments > 1) {
+                $payload['installmentCount'] = $breakdown->installments;
+                $payload['installmentValue'] = round($chargeValue / $breakdown->installments, 2);
+            }
         }
 
-        $response = Http::withHeaders([
-            'access_token' => config('asaas.api_key'),
-            'Content-Type' => 'application/json',
-        ])->post(config('asaas.url').'/payments', $payload);
+        // Split: repassa valor ao produtor se tiver walletId configurado
+        $producer = $order->event?->producer;
 
-        if ($response->failed()) {
-            Log::error('Asaas payment creation failed', [
-                'order_id' => $order->id,
-                'billing_type' => $billingType,
-                'status' => $response->status(),
-                'body' => $response->json(),
-            ]);
-
-            $response->throw();
+        if ($producer && $producer->asaas_wallet_id && $breakdown) {
+            $splitService = app(AsaasSplitService::class);
+            $payload['split'] = $splitService->buildSplitPayload($producer, $breakdown);
         }
 
-        return $response->json();
-    }
+        $response = $this->client->createPayment($payload);
 
-    private function fetchPixQrCode(string $paymentId): array
-    {
-        $response = Http::withHeaders([
-            'access_token' => config('asaas.api_key'),
-        ])->get(config('asaas.url').'/payments/'.$paymentId.'/pixQrCode');
+        // Auditoria
+        $this->client->logTransaction(
+            type: 'PAYMENT',
+            status: $response['status'] ?? 'PENDING',
+            requestPayload: array_merge($payload, ['cardToken' => '[REDACTED]']),
+            responsePayload: $response,
+            asaasPaymentId: $response['id'] ?? null,
+            orderId: $order->id,
+            producerId: $producer?->id,
+            eventId: $order->event_id,
+            amount: $order->total_amount,
+        );
 
-        if ($response->failed()) {
-            Log::error('Asaas PIX QR code fetch failed', [
-                'payment_id' => $paymentId,
-                'status' => $response->status(),
-                'body' => $response->json(),
-            ]);
-
-            $response->throw();
-        }
-
-        return $response->json();
+        return $response;
     }
 
     private function getOrCreateCustomer(User $user): string
@@ -116,49 +109,22 @@ class AsaasPaymentGateway implements PaymentGatewayInterface
 
         $document = preg_replace('/\D/', '', $user->document);
 
-        $existing = Http::withHeaders([
-            'access_token' => config('asaas.api_key'),
-        ])->get(config('asaas.url').'/customers', [
-            'email' => $user->email,
-        ]);
+        $existing = $this->client->findCustomerByEmail($user->email);
 
-        if ($existing->successful()) {
-            $customers = $existing->json('data', []);
-
-            if (! empty($customers[0]['id'])) {
-                $customerId = $customers[0]['id'];
-
-                if (empty($customers[0]['cpfCnpj'])) {
-                    $this->updateCustomerDocument($customerId, $document);
-                }
-
-                return $customerId;
+        if ($existing) {
+            if (empty($existing['cpfCnpj'])) {
+                $this->client->updateCustomer($existing['id'], ['cpfCnpj' => $document]);
             }
+
+            return $existing['id'];
         }
 
-        $response = Http::withHeaders([
-            'access_token' => config('asaas.api_key'),
-            'Content-Type' => 'application/json',
-        ])->post(config('asaas.url').'/customers', [
+        $customer = $this->client->createCustomer([
             'name' => $user->name,
             'email' => $user->email,
             'cpfCnpj' => $document,
         ]);
 
-        if ($response->failed()) {
-            throw new RequestException($response);
-        }
-
-        return $response->json('id');
-    }
-
-    private function updateCustomerDocument(string $customerId, string $document): void
-    {
-        Http::withHeaders([
-            'access_token' => config('asaas.api_key'),
-            'Content-Type' => 'application/json',
-        ])->put(config('asaas.url').'/customers/'.$customerId, [
-            'cpfCnpj' => $document,
-        ])->throw();
+        return $customer['id'];
     }
 }

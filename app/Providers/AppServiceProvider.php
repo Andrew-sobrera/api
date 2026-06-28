@@ -19,6 +19,11 @@ class AppServiceProvider extends ServiceProvider
             \App\Services\Payments\PaymentGatewayInterface::class,
             \App\Services\Payments\AsaasPaymentGateway::class
         );
+
+        // AsaasClient singleton com a API key da conta principal
+        $this->app->singleton(\App\Services\Payments\AsaasClient::class, function () {
+            return new \App\Services\Payments\AsaasClient(config('asaas.api_key'));
+        });
     }
 
     /**

@@ -4,9 +4,12 @@ namespace App\Services;
 
 use App\Exceptions\BaseException;
 use App\Exceptions\InvalidCredentialsException;
+use App\Jobs\CreateAsaasSubaccountJob;
+use App\Models\ProducerPaymentMethod;
 use App\Models\User;
 use App\Repositories\ProducerRepository;
 use App\Repositories\UserRepository;
+use App\Support\QueueNames;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -79,16 +82,36 @@ class AuthService
             if ($data['role'] === 'producer') {
                 $producer = $this->producerRepository->create([
                     'name' => $data['company_name'],
+                    'fantasy_name' => $data['fantasy_name'] ?? null,
                     'cnpj' => $data['cnpj'],
+                    'phone' => $data['phone'] ?? null,
+                    'email' => $data['email'],
+                    'address' => $data['address'] ?? null,
                 ]);
 
-                return $this->userRepository->create([
+                // Cria métodos de pagamento padrão (PIX ativo)
+                ProducerPaymentMethod::create([
+                    'producer_id' => $producer->id,
+                    'payment_method' => 'PIX',
+                    'max_installments' => 1,
+                    'active' => true,
+                ]);
+
+                $user = $this->userRepository->create([
                     'name' => $data['name'],
                     'email' => $data['email'],
                     'password' => $data['password'],
                     'role' => 'producer',
                     'producer_id' => $producer->id,
+                    'document' => $data['cnpj'],
                 ]);
+
+                // Dispara criação da subconta de forma assíncrona
+                CreateAsaasSubaccountJob::dispatch($producer->id)
+                    ->onConnection(config('queue.default'))
+                    ->onQueue(QueueNames::ASAAS_SUBACCOUNTS);
+
+                return $user;
             }
 
             return $this->userRepository->create([

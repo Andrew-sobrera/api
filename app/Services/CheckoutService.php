@@ -8,14 +8,17 @@ use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Enums\ReservationStatus;
 use App\Exceptions\InsufficientStockException;
+use App\Exceptions\ProducerNotReadyException;
 use App\Jobs\CreatePaymentJob;
 use App\Jobs\ExpireTicketReservationJob;
 use App\Jobs\SendPurchaseEmailJob;
 use App\Mail\PurchaseCreatedMail;
+use App\Models\Event;
 use App\Models\Order;
 use App\Models\TicketBatch;
 use App\Repositories\EventTicketRepository;
 use App\Repositories\OrderRepository;
+use App\Services\Payments\AsaasFeeCalculatorService;
 use App\Support\QueueNames;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -31,6 +34,7 @@ class CheckoutService
         protected TicketBatchService $batchService,
         protected SeatService $seatService,
         protected CartService $cartService,
+        protected AsaasFeeCalculatorService $feeCalculator,
     ) {
     }
 
@@ -44,6 +48,7 @@ class CheckoutService
         ?string $cardToken = null,
         bool $clearCart = false,
         ?int $eventId = null,
+        int $installments = 1,
     ): Order {
         if (empty($items)) {
             throw new InsufficientStockException('Carrinho vazio.');
@@ -56,16 +61,34 @@ class CheckoutService
         }
 
         try {
-            $order = DB::transaction(function () use ($userId, $items, $paymentMethod) {
-                $totalAmount = 0;
+            $order = DB::transaction(function () use ($userId, $items, $paymentMethod, $installments) {
+                $totalTicketAmount = 0;
                 $eventId = null;
 
                 foreach ($items as $item) {
-                    $totalAmount += $item->unitPrice * $item->quantity;
+                    $totalTicketAmount += $item->unitPrice * $item->quantity;
                     $ticket = $this->eventTicketRepository->findForUpdate($item->eventTicketId);
                     $eventId = $ticket->event_id;
                 }
 
+                // Calcular taxas e breakdown financeiro
+                $event = Event::with('producer')->findOrFail($eventId);
+                $producer = $event->producer;
+
+                if ($producer && ! config('asaas.bypass_producer_validation') && ! $producer->isAsaasReady()) {
+                    throw new ProducerNotReadyException();
+                }
+
+                $breakdown = $producer
+                    ? $this->feeCalculator->calculateForProducer(
+                        $totalTicketAmount,
+                        $paymentMethod->value,
+                        $producer,
+                        $installments,
+                    )
+                    : null;
+
+                $totalAmount = $breakdown ? $breakdown->totalCustomerAmount : $totalTicketAmount;
                 $expiresAt = now()->addMinutes(config('checkout.reservation_ttl_minutes'));
 
                 $order = $this->orderRepository->createOrder([
@@ -75,13 +98,19 @@ class CheckoutService
                     'payment_status' => PaymentStatus::PENDING,
                     'payment_method' => $paymentMethod,
                     'total_amount' => $totalAmount,
+                    'ticket_amount' => $totalTicketAmount,
+                    'gateway_fee' => $breakdown?->gatewayFee ?? 0,
+                    'platform_commission' => $breakdown?->platformCommission ?? 0,
+                    'producer_amount' => $breakdown?->producerAmount ?? 0,
+                    'installments' => $installments,
+                    'payment_fee_mode' => $breakdown?->paymentFeeMode,
                 ]);
 
                 foreach ($items as $item) {
                     $this->processLineItem($order, $item, $expiresAt);
                 }
 
-                return $order->load(['items.eventTicket', 'reservations', 'user']);
+                return ['order' => $order->load(['items.eventTicket', 'reservations', 'user']), 'breakdown' => $breakdown];
             });
         } catch (\Throwable $exception) {
             foreach ($items as $item) {
@@ -91,25 +120,28 @@ class CheckoutService
             throw $exception;
         }
 
+        $resolvedOrder = $order['order'];
+        $breakdown = $order['breakdown'] ?? null;
+
         try {
-            $order = $this->orderPaymentService->processPayment($order->id, $cardToken);
+            $resolvedOrder = $this->orderPaymentService->processPayment($resolvedOrder->id, $cardToken, $breakdown);
         } catch (\Throwable $exception) {
-            $this->rollbackFailedPayment($order, $items);
+            $this->rollbackFailedPayment($resolvedOrder, $items);
             Log::error('Checkout payment failed', [
-                'order_id' => $order->id,
+                'order_id' => $resolvedOrder->id,
                 'message' => $exception->getMessage(),
             ]);
 
             throw $exception;
         }
 
-        $this->dispatchPostCheckoutJobs($order);
+        $this->dispatchPostCheckoutJobs($resolvedOrder);
 
         if ($clearCart) {
-            $this->cartService->clear(\App\Models\User::findOrFail($userId), $eventId);
+            $this->cartService->clear(\App\Models\User::findOrFail($userId), $eventId ?? null);
         }
 
-        return $order;
+        return $resolvedOrder;
     }
 
     public function checkout(
@@ -131,8 +163,13 @@ class CheckoutService
         return $this->checkoutFromItems($userId, $items, $paymentMethod, $cardToken);
     }
 
-    public function checkoutFromCart(int $userId, PaymentMethod $paymentMethod, ?string $cardToken = null, ?int $eventId = null): Order
-    {
+    public function checkoutFromCart(
+        int $userId,
+        PaymentMethod $paymentMethod,
+        ?string $cardToken = null,
+        ?int $eventId = null,
+        int $installments = 1,
+    ): Order {
         $user = \App\Models\User::findOrFail($userId);
         $items = $this->cartService->toCheckoutItems($user, $eventId);
 
@@ -147,23 +184,47 @@ class CheckoutService
         }
 
         try {
-            $order = DB::transaction(function () use ($userId, $items, $paymentMethod, $cart) {
-                $totalAmount = 0;
-                $eventId = null;
+            $result = DB::transaction(function () use ($userId, $items, $paymentMethod, $cart, $installments) {
+                $totalTicketAmount = 0;
+                $resolvedEventId = null;
 
                 foreach ($items as $item) {
-                    $totalAmount += $item->unitPrice * $item->quantity;
+                    $totalTicketAmount += $item->unitPrice * $item->quantity;
                     $ticket = $this->eventTicketRepository->findForUpdate($item->eventTicketId);
-                    $eventId = $ticket->event_id;
+                    $resolvedEventId = $ticket->event_id;
                 }
+
+                $event = Event::with('producer')->findOrFail($resolvedEventId);
+                $producer = $event->producer;
+
+                if ($producer && ! config('asaas.bypass_producer_validation') && ! $producer->isAsaasReady()) {
+                    throw new ProducerNotReadyException();
+                }
+
+                $breakdown = $producer
+                    ? $this->feeCalculator->calculateForProducer(
+                        $totalTicketAmount,
+                        $paymentMethod->value,
+                        $producer,
+                        $installments,
+                    )
+                    : null;
+
+                $totalAmount = $breakdown ? $breakdown->totalCustomerAmount : $totalTicketAmount;
 
                 $order = $this->orderRepository->createOrder([
                     'user_id' => $userId,
-                    'event_id' => $eventId,
+                    'event_id' => $resolvedEventId,
                     'status' => OrderStatus::PENDING_PAYMENT,
                     'payment_status' => PaymentStatus::PENDING,
                     'payment_method' => $paymentMethod,
                     'total_amount' => $totalAmount,
+                    'ticket_amount' => $totalTicketAmount,
+                    'gateway_fee' => $breakdown?->gatewayFee ?? 0,
+                    'platform_commission' => $breakdown?->platformCommission ?? 0,
+                    'producer_amount' => $breakdown?->producerAmount ?? 0,
+                    'installments' => $installments,
+                    'payment_fee_mode' => $breakdown?->paymentFeeMode,
                 ]);
 
                 foreach ($items as $item) {
@@ -172,28 +233,31 @@ class CheckoutService
 
                 app(CartReservationService::class)->transferCartToOrder($cart, $order);
 
-                return $order->load(['items.eventTicket', 'reservations', 'user']);
+                return ['order' => $order->load(['items.eventTicket', 'reservations', 'user']), 'breakdown' => $breakdown];
             });
         } catch (\Throwable $exception) {
             throw $exception;
         }
 
+        $resolvedOrder = $result['order'];
+        $breakdown = $result['breakdown'] ?? null;
+
         try {
-            $order = $this->orderPaymentService->processPayment($order->id, $cardToken);
+            $resolvedOrder = $this->orderPaymentService->processPayment($resolvedOrder->id, $cardToken, $breakdown);
         } catch (\Throwable $exception) {
-            $this->rollbackFailedPayment($order, $items);
+            $this->rollbackFailedPayment($resolvedOrder, $items);
             Log::error('Checkout payment failed', [
-                'order_id' => $order->id,
+                'order_id' => $resolvedOrder->id,
                 'message' => $exception->getMessage(),
             ]);
 
             throw $exception;
         }
 
-        $this->dispatchPostCheckoutJobs($order);
+        $this->dispatchPostCheckoutJobs($resolvedOrder);
         $this->cartService->clear($user, $eventId);
 
-        return $order;
+        return $resolvedOrder;
     }
 
     private function processLineItemFromCart(Order $order, CheckoutLineItem $item): void

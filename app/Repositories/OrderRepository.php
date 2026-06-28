@@ -110,4 +110,12 @@ class OrderRepository
             ->with(['eventTicket', 'order'])
             ->findOrFail($id);
     }
+
+    public function cancelOrder(Order $order): Order
+    {
+        return $this->update($order, [
+            'status' => \App\Enums\OrderStatus::CANCELLED,
+            'payment_status' => \App\Enums\PaymentStatus::CANCELLED,
+        ]);
+    }
 }

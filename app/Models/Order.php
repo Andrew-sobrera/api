@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\OrderChargebackStatus;
 use App\Enums\OrderStatus;
+use App\Enums\PaymentFeeMode;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use Illuminate\Database\Eloquent\Model;
@@ -17,12 +19,20 @@ class Order extends Model
         'event_id',
         'status',
         'total_amount',
+        'ticket_amount',
+        'gateway_fee',
+        'platform_commission',
+        'producer_amount',
+        'installments',
+        'payment_fee_mode',
         'payment_method',
         'payment_status',
         'asaas_payment_id',
         'pix_payload',
         'pix_qr_code_url',
         'payment_response',
+        'chargeback_status',
+        'refunded_at',
     ];
 
     protected function casts(): array
@@ -31,8 +41,16 @@ class Order extends Model
             'status' => OrderStatus::class,
             'payment_method' => PaymentMethod::class,
             'payment_status' => PaymentStatus::class,
+            'payment_fee_mode' => PaymentFeeMode::class,
+            'chargeback_status' => OrderChargebackStatus::class,
             'total_amount' => 'integer',
+            'ticket_amount' => 'integer',
+            'gateway_fee' => 'integer',
+            'platform_commission' => 'integer',
+            'producer_amount' => 'integer',
+            'installments' => 'integer',
             'payment_response' => 'array',
+            'refunded_at' => 'datetime',
         ];
     }
 

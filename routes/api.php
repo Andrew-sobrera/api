@@ -23,6 +23,7 @@ use App\Http\Controllers\PublicTicketController;
 use App\Http\Controllers\TicketPdfController;
 use App\Http\Controllers\PublicSeatController;
 use App\Http\Controllers\ProducerController;
+use App\Http\Controllers\ProducerFinancialController;
 use App\Http\Controllers\PlaceController;
 
 Route::get('/user', function (Request $request) {
@@ -104,6 +105,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/map-templates/{id}', [VenueMapTemplateController::class, 'show']);
     Route::post('/map-templates', [VenueMapTemplateController::class, 'store']);
     Route::delete('/map-templates/{id}', [VenueMapTemplateController::class, 'destroy']);
+
+    // ─── Produtor: perfil e configurações financeiras ───────────────────
+    Route::prefix('producer')->group(function () {
+        Route::get('/', [ProducerController::class, 'show']);
+        Route::post('/complete-financial-profile', [ProducerController::class, 'completeFinancialProfile']);
+        Route::patch('/payment-settings', [ProducerController::class, 'updatePaymentSettings']);
+
+        // Dashboard financeiro e pedidos
+        Route::get('/financial/dashboard', [ProducerFinancialController::class, 'dashboard']);
+        Route::get('/financial/orders', [ProducerFinancialController::class, 'orders']);
+        Route::post('/financial/orders/{orderId}/refund', [ProducerFinancialController::class, 'refundOrder']);
+        Route::post('/financial/calculate', [ProducerFinancialController::class, 'calculate']);
+    });
 
 });
 

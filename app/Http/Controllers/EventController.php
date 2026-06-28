@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\EventResource;
+use App\Rules\ProducerCanCreateEventRule;
 use App\Services\EventService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -25,6 +26,17 @@ class EventController extends Controller
 
     public function create(Request $request)
     {
+        $producer = $request->user()->producer;
+
+        // Valida se o produtor está habilitado para criar eventos
+        $producerValidator = Validator::make(['producer' => $producer?->id], [
+            'producer' => ['required', new ProducerCanCreateEventRule($producer)],
+        ]);
+
+        if ($producerValidator->fails()) {
+            return response()->json(['error' => $producerValidator->errors()], 422);
+        }
+
         $validator = $this->makeValidator($request);
 
         if ($validator->fails()) {
