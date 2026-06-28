@@ -325,6 +325,82 @@ class CheckoutService
         }
     }
 
+    /**
+     * Calcula o breakdown financeiro do carrinho sem criar pedido.
+     */
+    public function previewFromCart(
+        int $userId,
+        PaymentMethod $paymentMethod,
+        ?int $eventId = null,
+        int $installments = 1,
+    ): \App\DTOs\CheckoutFeeBreakdown {
+        $user = \App\Models\User::findOrFail($userId);
+        $items = $this->cartService->toCheckoutItems($user, $eventId);
+
+        if (empty($items)) {
+            throw new InsufficientStockException('Carrinho vazio.');
+        }
+
+        return $this->calculateBreakdownForItems($items, $paymentMethod, $installments);
+    }
+
+    /**
+     * Calcula o breakdown financeiro para itens avulsos (sem criar pedido).
+     *
+     * @param  CheckoutLineItem[]  $items
+     */
+    public function previewFromItems(
+        array $items,
+        PaymentMethod $paymentMethod,
+        int $installments = 1,
+    ): \App\DTOs\CheckoutFeeBreakdown {
+        if (empty($items)) {
+            throw new InsufficientStockException('Carrinho vazio.');
+        }
+
+        return $this->calculateBreakdownForItems($items, $paymentMethod, $installments);
+    }
+
+    /**
+     * @param  CheckoutLineItem[]  $items
+     */
+    private function calculateBreakdownForItems(
+        array $items,
+        PaymentMethod $paymentMethod,
+        int $installments,
+    ): \App\DTOs\CheckoutFeeBreakdown {
+        $totalTicketAmount = 0;
+        $resolvedEventId = null;
+
+        foreach ($items as $item) {
+            $totalTicketAmount += $item->unitPrice * $item->quantity;
+            $ticket = $this->eventTicketRepository->findForUpdate($item->eventTicketId);
+            $resolvedEventId = $ticket->event_id;
+        }
+
+        $event = Event::with('producer')->findOrFail($resolvedEventId);
+        $producer = $event->producer;
+
+        if (! $producer) {
+            return new \App\DTOs\CheckoutFeeBreakdown(
+                ticketAmount: $totalTicketAmount,
+                gatewayFee: 0,
+                platformCommission: 0,
+                producerAmount: $totalTicketAmount,
+                totalCustomerAmount: $totalTicketAmount,
+                paymentFeeMode: 'CUSTOMER',
+                installments: $installments,
+            );
+        }
+
+        return $this->feeCalculator->calculateForProducer(
+            $totalTicketAmount,
+            $paymentMethod->value,
+            $producer,
+            $installments,
+        );
+    }
+
     private function dispatchPostCheckoutJobs(Order $order): void
     {
         CreatePaymentJob::dispatch($order->id)

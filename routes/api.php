@@ -68,6 +68,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::post('/checkout', [CheckoutController::class, 'store']);
+    Route::post('/checkout/preview', [CheckoutController::class, 'preview']);
 
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{id}', [OrderController::class, 'show']);
