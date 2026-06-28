@@ -129,11 +129,18 @@ class AsaasAccountService
         $document = preg_replace('/\D/', '', $producer->cnpj ?? '');
         $address = $producer->address ?? [];
 
-        return array_filter([
+        if ($producer->income_value === null || (float) $producer->income_value <= 0) {
+            throw new AsaasException(
+                'Informe o faturamento ou renda mensal antes de criar a subconta Asaas.',
+                422,
+            );
+        }
+
+        $payload = [
             'name' => $producer->name,
             'email' => $producer->email,
             'cpfCnpj' => $document,
-            'companyType' => strlen($document) === 14 ? 'MEI' : null,
+            'incomeValue' => (float) $producer->income_value,
             'phone' => preg_replace('/\D/', '', $producer->phone ?? ''),
             'mobilePhone' => preg_replace('/\D/', '', $producer->phone ?? ''),
             'address' => $address['street'] ?? null,
@@ -141,6 +148,15 @@ class AsaasAccountService
             'complement' => $address['complement'] ?? null,
             'province' => $address['district'] ?? null,
             'postalCode' => preg_replace('/\D/', '', $address['postal_code'] ?? ''),
-        ]);
+        ];
+
+        if (strlen($document) === 14) {
+            $payload['companyType'] = 'MEI';
+        }
+
+        return array_filter(
+            $payload,
+            static fn ($value) => $value !== null && $value !== '',
+        );
     }
 }

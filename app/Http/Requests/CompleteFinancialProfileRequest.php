@@ -18,6 +18,7 @@ class CompleteFinancialProfileRequest extends FormRequest
             'fantasy_name' => ['nullable', 'string', 'max:255'],
             'phone' => ['required', 'string', 'min:10', 'max:20'],
             'email' => ['required', 'email'],
+            'income_value' => ['required', 'numeric', 'min:1'],
             'address' => ['required', 'array'],
             'address.street' => ['required', 'string', 'max:255'],
             'address.number' => ['required', 'string', 'max:20'],
@@ -34,6 +35,8 @@ class CompleteFinancialProfileRequest extends FormRequest
         return [
             'cnpj.required' => 'CPF ou CNPJ é obrigatório.',
             'phone.required' => 'Telefone é obrigatório.',
+            'income_value.required' => 'Informe o faturamento ou renda mensal.',
+            'income_value.min' => 'O faturamento ou renda mensal deve ser maior que zero.',
             'address.required' => 'Endereço é obrigatório.',
             'address.postal_code.required' => 'CEP é obrigatório.',
         ];

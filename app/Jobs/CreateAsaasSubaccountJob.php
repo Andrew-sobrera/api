@@ -35,6 +35,14 @@ class CreateAsaasSubaccountJob implements ShouldQueue
             return;
         }
 
+        if (! $producer->income_value || empty($producer->address)) {
+            Log::info('[CreateAsaasSubaccountJob] Perfil financeiro incompleto, aguardando cadastro.', [
+                'producer_id' => $this->producerId,
+            ]);
+
+            return;
+        }
+
         Log::info('[CreateAsaasSubaccountJob] Criando subconta Asaas', [
             'producer_id' => $this->producerId,
         ]);

@@ -4,12 +4,10 @@ namespace App\Services;
 
 use App\Exceptions\BaseException;
 use App\Exceptions\InvalidCredentialsException;
-use App\Jobs\CreateAsaasSubaccountJob;
 use App\Models\ProducerPaymentMethod;
 use App\Models\User;
 use App\Repositories\ProducerRepository;
 use App\Repositories\UserRepository;
-use App\Support\QueueNames;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -106,10 +104,7 @@ class AuthService
                     'document' => $data['cnpj'],
                 ]);
 
-                // Dispara criação da subconta de forma assíncrona
-                CreateAsaasSubaccountJob::dispatch($producer->id)
-                    ->onConnection(config('queue.default'))
-                    ->onQueue(QueueNames::ASAAS_SUBACCOUNTS);
+                // Subconta Asaas é criada após completar o perfil financeiro (income + endereço)
 
                 return $user;
             }

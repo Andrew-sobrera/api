@@ -273,7 +273,8 @@ GET /auth/google/callback
          ▼  (Frontend detecta needs_financial_profile = true)
 
 POST /producer/complete-financial-profile
-         │  { cnpj, phone, address, fantasy_name, email }
+         │  { cnpj, phone, address, fantasy_name, email, income_value }
+         │  income_value → enviado ao Asaas como incomeValue (obrigatório Bacen)
          │
          ▼
    ProducerService::completeFinancialProfile()

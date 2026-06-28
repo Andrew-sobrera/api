@@ -16,6 +16,7 @@ class Producer extends Model
         'phone',
         'email',
         'address',
+        'income_value',
         'asaas_account_id',
         'asaas_wallet_id',
         'asaas_status',
@@ -33,6 +34,7 @@ class Producer extends Model
             'asaas_onboarding_completed' => 'boolean',
             'asaas_created_at' => 'datetime',
             'ticket_commission_percentage' => 'decimal:2',
+            'income_value' => 'decimal:2',
             'address' => 'array',
         ];
     }

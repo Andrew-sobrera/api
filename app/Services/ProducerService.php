@@ -41,6 +41,7 @@ class ProducerService
                 'phone' => $data['phone'] ?? $producer->phone,
                 'email' => $data['email'] ?? $producer->email,
                 'address' => $data['address'] ?? $producer->address,
+                'income_value' => $data['income_value'] ?? $producer->income_value,
             ]);
 
             $this->asaasAccountService->createSubaccount($producer->fresh());
