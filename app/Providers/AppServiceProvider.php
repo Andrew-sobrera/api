@@ -7,6 +7,8 @@ use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Gate;
+use App\Models\User;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -32,6 +34,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         JsonResource::withoutWrapping();
+
+        Gate::define('admin', function (User $user) {
+            return true;
+        });
 
         VerifyEmail::createUrlUsing(function ($notifiable) {
             return URL::temporarySignedRoute(
