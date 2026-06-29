@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 use App\Models\User;
+use Laravel\Pulse\Pulse;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -35,7 +36,9 @@ class AppServiceProvider extends ServiceProvider
     {
         JsonResource::withoutWrapping();
 
-        Gate::define('viewPulse', fn () => true);
+        Pulse::auth(function () {
+            return true;
+        });
 
         VerifyEmail::createUrlUsing(function ($notifiable) {
             return URL::temporarySignedRoute(
