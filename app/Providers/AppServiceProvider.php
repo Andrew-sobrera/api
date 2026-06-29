@@ -35,9 +35,7 @@ class AppServiceProvider extends ServiceProvider
     {
         JsonResource::withoutWrapping();
 
-        Gate::define('viewPulse', function (User $user) {
-            return true;
-        });
+        Gate::define('viewPulse', fn () => true);
 
         VerifyEmail::createUrlUsing(function ($notifiable) {
             return URL::temporarySignedRoute(
