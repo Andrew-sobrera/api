@@ -35,7 +35,7 @@ class AppServiceProvider extends ServiceProvider
     {
         JsonResource::withoutWrapping();
 
-        Gate::define('admin', function (User $user) {
+        Gate::define('viewPulse', function (User $user) {
             return true;
         });
 
