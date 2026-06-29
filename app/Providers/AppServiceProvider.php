@@ -36,10 +36,6 @@ class AppServiceProvider extends ServiceProvider
     {
         JsonResource::withoutWrapping();
 
-        Pulse::auth(function () {
-            return true;
-        });
-
         VerifyEmail::createUrlUsing(function ($notifiable) {
             return URL::temporarySignedRoute(
                 'verification.verify',
